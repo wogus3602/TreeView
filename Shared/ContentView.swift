@@ -5,24 +5,6 @@ struct FileItem: Identifiable {
     var children: [FileItem]?
 
     var id: String { name }
-
-    static let spmData: [FileItem] = [
-        FileItem(name: ".gitignore"),
-        FileItem(name: "Package.swift"),
-        FileItem(name: "README.md"),
-        FileItem(name: "Sources", children: [
-            FileItem(name: "fivestars", children: [
-                FileItem(name: "main.swift")
-            ]),
-        ]),
-        FileItem(name: "Tests", children: [
-            FileItem(name: "fivestarsTests", children: [
-                FileItem(name: "fivestarsTests.swift"),
-                FileItem(name: "XCTestManifests.swift"),
-            ]),
-            FileItem(name: "LinuxMain.swift")
-        ])
-    ]
 }
 
 class ViewModel: ObservableObject {
