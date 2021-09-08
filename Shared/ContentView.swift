@@ -1,156 +1,128 @@
-//
-//  ContentView.swift
-//  Shared
-//
-//  Created by USER on 2021/09/07.
-//
-
 import SwiftUI
 
+struct FileItem: Identifiable {
+    let name: String
+    var children: [FileItem]?
+
+    var id: String { name }
+
+    static let spmData: [FileItem] = [
+        FileItem(name: ".gitignore"),
+        FileItem(name: "Package.swift"),
+        FileItem(name: "README.md"),
+        FileItem(name: "Sources", children: [
+            FileItem(name: "fivestars", children: [
+                FileItem(name: "main.swift")
+            ]),
+        ]),
+        FileItem(name: "Tests", children: [
+            FileItem(name: "fivestarsTests", children: [
+                FileItem(name: "fivestarsTests.swift"),
+                FileItem(name: "XCTestManifests.swift"),
+            ]),
+            FileItem(name: "LinuxMain.swift")
+        ])
+    ]
+}
+
+class ViewModel: ObservableObject {
+    @Published var data: [FileItem] = [
+        FileItem(name: "1", children: [
+            FileItem(name: "1-1", children: [
+                FileItem(name: "1-1-1")
+            ]),
+            FileItem(name: "1-2", children: [
+                FileItem(name: "1-2-1"),
+                FileItem(name: "1-2-2")
+            ])
+        ]),
+        FileItem(name: "2", children: [
+            FileItem(name: "2-1", children: [
+                FileItem(name: "2-1-1")
+            ]),
+            FileItem(name: "2-2", children: [
+                FileItem(name: "2-2-1")
+            ]),
+            FileItem(name: "2-3", children: [
+                FileItem(name: "2-3-1")
+            ])
+        ]),
+        FileItem(name: "2"),
+        FileItem(name: "3"),
+        FileItem(name: "4", children: [
+            FileItem(name: "4-1", children: [
+                FileItem(name: "4-1-1")
+            ]),
+        ]),
+        FileItem(name: "5", children: [
+            FileItem(name: "5-1", children: [
+                FileItem(name: "5-1-1"),
+                FileItem(name: "5-1-2"),
+            ]),
+            FileItem(name: "5-2")
+        ])
+    ]
+
+    func remove1() {
+        data[0].children?[0].children = nil
+    }
+    func remove2() {
+        data[0].children?[1].children?.remove(at: 0)
+
+    }
+
+}
+
 struct ContentView: View {
-    @ObservedObject var items: Item
-    
-    init(item: Item) {
-        self.items = item
-    }
-    
-    var body: some View {
-        List {
-            ForEachView(items: items)
-        }
-    }
-}
 
-struct ForEachView: View {
-    @StateObject var items: Item
-    
+    @StateObject var viewModel = ViewModel()
     var body: some View {
-        ForEach(items.children) { item in
-            LabelView(parent: items, item: item)
-        }
-    }
-}
-
-struct LabelView: View {
-    @StateObject var parent: Item
-    @StateObject var item: Item
-    
-    var body: some View {
-        Group {
-            if item.children.isEmpty {
-                Text("\(item.title)")
-                    .contextMenu {
-                        Button("delete") {
-                            if let index = parent.children.firstIndex(where: { $0.id == item.id }) {
-                                parent.remove(at: index)
-                            }
-                        }
-                    }
-            } else {
-                DisclosureGroup(
-                    isExpanded: item.$isExpanded,
-                    content: {
-                        ForEachView(items: item)
-                    },
-                    label: {
-                        Text("\(item.title)")
-                            .contextMenu {
-                                Button("delete") {
-                                    if let index = parent.children.firstIndex(where: { $0.id == item.id }) {
-                                        parent.remove(at: index)
-                                    }
-                                }
-                            }
-                    }
-                )
+        //    List(data, children: \.children, rowContent: { Text($0.name) })
+        VStack {
+            HierarchyList(data: viewModel.data, children: \.children, rowContent: { Text($0.name) })
+            Button("remove1") {
+                viewModel.remove1()
+            }
+            Button("remove1") {
+                viewModel.remove2()
             }
         }
     }
 }
 
-struct ContentView_Previews: PreviewProvider {
-    
-    static var previews: some View {
-        let item: Item = dummyItems2
-        ContentView(item: item)
+public struct HierarchyList<Data, RowContent>: View where Data: RandomAccessCollection, Data.Element: Identifiable, RowContent: View {
+    private let recursiveView: RecursiveView<Data, RowContent>
+
+    public init(data: Data, children: KeyPath<Data.Element, Data?>, rowContent: @escaping (Data.Element) -> RowContent) {
+        self.recursiveView = RecursiveView(data: data, children: children, rowContent: rowContent)
+    }
+
+    public var body: some View {
+        List {
+            recursiveView
+        }
+        .listStyle(SidebarListStyle())
     }
 }
 
-class Item: Identifiable, ObservableObject {
-    var id: UUID = UUID()
-    
-    @Binding var isExpanded: Bool
-    @Published var title: String = "title"
-    @Published var children: [Item] = []
-    
-    init(title: String,
-         children: [Item]) {
-        self.title = title
-        self.children = children
-        self._isExpanded = .constant(true)
-    }
-    
-    func remove(at index: Int) {
-        children.remove(at: index)
+private struct RecursiveView<Data, RowContent>: View where Data: RandomAccessCollection, Data.Element: Identifiable, RowContent: View {
+    let data: Data
+    let children: KeyPath<Data.Element, Data?>
+    let rowContent: (Data.Element) -> RowContent
+
+    var body: some View {
+        ForEach(data) { child in
+            if let subChildren = child[keyPath: children] {
+                DisclosureGroup(isExpanded: .constant(true), content: {
+                    RecursiveView(data: subChildren, children: children, rowContent: rowContent)
+                }, label: {
+                    rowContent(child)
+                })
+            } else {
+                rowContent(child)
+            }
+        }
     }
 }
 
-let dummyItems2 = Item(title: "root",
-                       children: [
-                        Item(title: "1",
-                             children: [
-                                Item(title: "1-1",
-                                     children: [
-                                        Item(title: "1-1-1",
-                                             children: [])]
-                                ),
-                                Item(title: "1-2",
-                                     children: [
-                                        Item(title: "1-2-1",
-                                             children: []),
-                                        Item(title: "1-2-2",
-                                             children: [])]
-                                )
-                             ]),
-                        Item(title: "2",
-                             children: [
-                                Item(title: "2-1",
-                                     children: [
-                                        Item(title: "2-1-1",
-                                             children: [])]
-                                ),
-                                Item(title: "2-2",
-                                     children: [
-                                        Item(title: "2-2-1",
-                                             children: [])]
-                                ),
-                                Item(title: "2-3",
-                                     children: [
-                                        Item(title: "2-3-1",
-                                             children: [])]
-                                ),
-                             ]),
-                        Item(title: "3",
-                             children: [
-                                Item(title: "3-1",
-                                     children: [
-                                        Item(title: "3-1-1",
-                                             children: []),
-                                        Item(title: "3-1-2",
-                                             children: []),
-                                        Item(title: "3-1-3",
-                                             children: [])]
-                                ),
-                                Item(title: "3-2",
-                                     children: [
-                                        Item(title: "3-1-1",
-                                             children: [])]
-                                ),
-                                Item(title: "3-3",
-                                     children: [
-                                        Item(title: "3-1-1",
-                                             children: [])]
-                                )
-                             ])
-                        
-                       ])
+
