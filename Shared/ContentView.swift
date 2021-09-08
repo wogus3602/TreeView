@@ -77,7 +77,6 @@ struct ContentView: View {
 
     @StateObject var viewModel = ViewModel()
     var body: some View {
-        //    List(data, children: \.children, rowContent: { Text($0.name) })
         VStack {
             // Even when using the vanilla SwiftUI List the bug is the same
             // List(viewModel.data, children: \.children, rowContent: { Text($0.name) })
